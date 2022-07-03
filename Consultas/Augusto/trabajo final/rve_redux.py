@@ -79,7 +79,10 @@ class RVE():
             x = position[0]+self.L/2
             y = position[1]+self.L/2
             # self.points['p'+str(i+4)] = gmsh.model.geo.addPoint(x, y, 0, lc*10)
-            self.fibres['f'+str(i)] = gmsh.model.occ.addCircle(x, y, 0, self.r_f)
+            #MDF-COMMENT seguis teniendo el problema de las fibras que se te salen afuera de la superficie !
+            #MDF-COMMENT con esto lya no da error el mallado.
+            if ( x+self.r_f < self.L ) and ( x-self.r_f > 0 ) and ( y-self.r_f > 0 )and ( y+self.r_f < self.L ):
+                self.fibres['f'+str(i)] = gmsh.model.occ.addCircle(x, y, 0, self.r_f)
 
         fibres_curve = []
         for fibre in list(self.fibres.values()):
