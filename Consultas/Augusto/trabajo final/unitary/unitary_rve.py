@@ -52,10 +52,17 @@ right_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, - dr, -dr, dr
 left_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(L-dr, -dr, -dr, L + dr, L + dr, L + dr, dim=2)
 
 
-bottom_face = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in bottom_face_entities], name='bottom_face')
-# top_face = gmsh.model.addPhysicalGroup(dim=2, tags=top_face_entities)
-fibers_PG = gmsh.model.addPhysicalGroup(dim=3, tags=[c_bl, c_ul, c_br, c_ur, c_center], name='fibers')
-matrix_PG = gmsh.model.addPhysicalGroup(dim=3, tags=matrix_tag, name='matrix')
+#MDF-COMMENT bottom_face = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in bottom_face_entities], name='bottom_face')
+bottom_face = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in bottom_face_entities])
+gmsh.model.setPhysicalName(2, bottom_face,'bottom_face')
+#top_face = gmsh.model.addPhysicalGroup(dim=2, tags=top_face_entities)
+#gmsh.model.setPhysicalName(2, top_face,'top_face')
+#MDF-COMMENT fibers_PG = gmsh.model.addPhysicalGroup(dim=3, tags=[c_bl, c_ul, c_br, c_ur, c_center], name='fibers')
+fibers_PG = gmsh.model.addPhysicalGroup(dim=3, tags=[c_bl, c_ul, c_br, c_ur, c_center]) 
+gmsh.model.setPhysicalName(3, fibers_PG, 'fibers')
+#MDF-COMMENTmatrix_PG = gmsh.model.addPhysicalGroup(dim=3, tags=matrix_tag, name='matrix')
+matrix_PG = gmsh.model.addPhysicalGroup(dim=3, tags=matrix_tag) #MDF-COMMENT, name='matrix')
+gmsh.model.setPhysicalName(3, matrix_PG, 'matrix')
 
 print('cara trasera: ', rear_face_entities)
 print('cara frontal: ', front_face_entities)
@@ -90,8 +97,9 @@ matrix_elements = matrix_elements_list[0][1][0]
 E_fiber = np.array([230e9]*len(fibers_elements))
 E_matrix = np.array([2e9]*len(matrix_elements))
 Es = np.concatenate((E_fiber, E_matrix))
-glxn = 6
+#MDF-COMMENT glxn = 6 #MDF-COMMENT por qué 6 ? no dería 3?
+glxn = 3
 nu = [.28]*Ne #0.26 a 0.28 I. Krucinska and T. Stypka, Compos. Sci. Technol. 41, 1-12 (1991).
-# get_k_global(MN, MC, Es, glxn, nu=nu, A=None) # todo arreglar
+get_k_global(MN, MC, Es, glxn, nu=nu, A=None) # todo arreglar
 
 gmsh.fltk.run()
