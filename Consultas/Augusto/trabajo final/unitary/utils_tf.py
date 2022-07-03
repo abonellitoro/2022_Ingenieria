@@ -24,14 +24,21 @@ def get_fem_data(dimension):
 
 
 def get_constitutive_matrix(E, nu, glxn):
-    D = np.zeros((glxn, glxn))
+    #MDF-COMMENT D = np.zeros((glxn, glxn))
+    #MDF-COMMENT esa relacion es incorrecta, fijate que en 2d glxn = 2 pero D es de 3x3.
+    #MDF-COMMENT en todo caso para elementos lineales uno podría llegar a decir que es (nnxe , nnxe ) pero no 
+    #MDF-COMMENT estoy seguro
 
-    for i in range(3):
-        D[i, i] = 1 - nu
-        D[i + 3, i + 3] = (1 - 2 * nu) / 2
-    D[0, 1] = nu
-    D[0, 2] = nu
-    D[1, 2] = nu
+    #MDF-COMMENT se me va de dimensiones esta matriz
+#MDF-COMMENT    for i in range(3):
+#MDF-COMMENT        D[i, i] = 1 - nu
+#MDF-COMMENT        D[i + 3, i + 3] = (1 - 2 * nu) / 2
+#MDF-COMMENT    D[0, 1] = nu
+#MDF-COMMENT    D[0, 2] = nu
+#MDF-COMMENT    D[1, 2] = nu
+    D = np.zeros([6,6])
+    D[1:4, 1:4] = ( 1-nu )*np.eye(3)
+    D[3:, 3:] = np.eye(3)*(1 - 2*nu)/2
     D = E / ((1 + nu) * (1 - 2 * nu)) * D
     return D
 

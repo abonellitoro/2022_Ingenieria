@@ -97,8 +97,9 @@ matrix_elements = matrix_elements_list[0][1][0]
 E_fiber = np.array([230e9]*len(fibers_elements))
 E_matrix = np.array([2e9]*len(matrix_elements))
 Es = np.concatenate((E_fiber, E_matrix))
-glxn = 6
+#MDF-COMMENT glxn = 6 #MDF-COMMENT por qué 6 ? no dería 3?
+glxn = 3
 nu = [.28]*Ne #0.26 a 0.28 I. Krucinska and T. Stypka, Compos. Sci. Technol. 41, 1-12 (1991).
-# get_k_global(MN, MC, Es, glxn, nu=nu, A=None) # todo arreglar
+get_k_global(MN, MC, Es, glxn, nu=nu, A=None) # todo arreglar
 
 gmsh.fltk.run()
