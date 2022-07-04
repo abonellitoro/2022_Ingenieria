@@ -1,6 +1,8 @@
+import itertools
+
 import gmsh
 import numpy as np
-from utils_tf import get_fem_data, get_k_global
+from utils_tf import get_fem_data, get_k_global, get_complementary_array, solve
 
 ff = 0.4
 r_f = 7e-6  # fiber radius [m]
@@ -9,9 +11,11 @@ l_min = 1e-6
 H = 2 * r_f + l_min
 L = 2 * np.sqrt(H ** 2 / 2)
 lc = L / 10
+dimension = 3
 
+name = 'prueba'
 gmsh.initialize()
-gmsh.model.add('prueba')
+gmsh.model.add(name)
 
 # # para hacer que los elementos sean cuadrados
 # gmsh.option.setNumber("General.Terminal", 1)
@@ -28,15 +32,17 @@ c_br = gmsh.model.occ.addCylinder(L, 0, 0, 0, 0, L, r_f)
 c_ur = gmsh.model.occ.addCylinder(L, L, 0, 0, 0, L, r_f)
 c_center = gmsh.model.occ.addCylinder(L / 2, L / 2, 0, 0, 0, L, r_f)
 print('Entidades: ', gmsh.model.getEntities(3))
+fiber_tags = [c_bl, c_ul, c_br, c_ur, c_center]
 old_tags = {cube, c_bl, c_ul, c_br, c_ur, c_center}
 
-volume = gmsh.model.occ.intersect([(3, cube)], [(3, c_ul), (3, c_ur), (3, c_bl), (3, c_br), (3, c_center)], removeObject=False, removeTool=True)
+volume = gmsh.model.occ.intersect([(3, cube)], [(3, c_ul), (3, c_ur), (3, c_bl), (3, c_br), (3, c_center)],
+                                  removeObject=False, removeTool=True)
 gmsh.model.occ.removeAllDuplicates()
 gmsh.model.occ.synchronize()
 print('Entidades: ', gmsh.model.getEntities(3))
 
 new_tags = {entity[1] for entity in gmsh.model.getEntities(3)}
-matrix_tag = list(new_tags-old_tags)
+matrix_tag = list(new_tags - old_tags)
 
 # volume_tags = [volume_element[1] for volume_element in volume[0]]
 # volume_pg = gmsh.model.addPhysicalGroup(3, volume_tags)
@@ -44,25 +50,29 @@ matrix_tag = list(new_tags-old_tags)
 gmsh.model.occ.synchronize()
 dr = l_min
 
-rear_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, -dr, -dr, L+ dr, L + dr, dr, dim=2)
-front_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, -dr, L-dr, L+ dr, L + dr, L+dr, dim=2)
+rear_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, -dr, -dr, L + dr, L + dr, dr, dim=2)
+front_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, -dr, L - dr, L + dr, L + dr, L + dr, dim=2)
 bottom_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, -dr, -dr, L + dr, dr, L + dr, dim=2)
 top_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, L - dr, -dr, L + dr, L + dr, L + dr, dim=2)
 right_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, - dr, -dr, dr, L + dr, L + dr, dim=2)
-left_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(L-dr, -dr, -dr, L + dr, L + dr, L + dr, dim=2)
+left_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(L - dr, -dr, -dr, L + dr, L + dr, L + dr, dim=2)
 
+bottom_face_PG = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in bottom_face_entities])
+gmsh.model.setPhysicalName(2, bottom_face_PG, 'bottom_face')
 
-#MDF-COMMENT bottom_face = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in bottom_face_entities], name='bottom_face')
-bottom_face = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in bottom_face_entities])
-gmsh.model.setPhysicalName(2, bottom_face,'bottom_face')
-#top_face = gmsh.model.addPhysicalGroup(dim=2, tags=top_face_entities)
-#gmsh.model.setPhysicalName(2, top_face,'top_face')
-#MDF-COMMENT fibers_PG = gmsh.model.addPhysicalGroup(dim=3, tags=[c_bl, c_ul, c_br, c_ur, c_center], name='fibers')
-fibers_PG = gmsh.model.addPhysicalGroup(dim=3, tags=[c_bl, c_ul, c_br, c_ur, c_center]) 
+top_face_PG = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in top_face_entities])
+gmsh.model.setPhysicalName(2, bottom_face_PG, 'top_face')
+
+fibers_PG = gmsh.model.addPhysicalGroup(dim=3, tags=[c_bl, c_ul, c_br, c_ur, c_center])
 gmsh.model.setPhysicalName(3, fibers_PG, 'fibers')
-#MDF-COMMENTmatrix_PG = gmsh.model.addPhysicalGroup(dim=3, tags=matrix_tag, name='matrix')
-matrix_PG = gmsh.model.addPhysicalGroup(dim=3, tags=matrix_tag) #MDF-COMMENT, name='matrix')
+
+matrix_PG = gmsh.model.addPhysicalGroup(dim=3, tags=matrix_tag)
 gmsh.model.setPhysicalName(3, matrix_PG, 'matrix')
+
+# bottom_face = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in bottom_face_entities], name='bottom_face')
+# # top_face = gmsh.model.addPhysicalGroup(dim=2, tags=top_face_entities)
+# fibers_PG = gmsh.model.addPhysicalGroup(dim=3, tags=[c_bl, c_ul, c_br, c_ur, c_center], name='fibers')
+# matrix_PG = gmsh.model.addPhysicalGroup(dim=3, tags=matrix_tag, name='matrix')
 
 print('cara trasera: ', rear_face_entities)
 print('cara frontal: ', front_face_entities)
@@ -79,9 +89,9 @@ gmsh.model.mesh.refine()
 
 gmsh.model.occ.synchronize()
 
-MN, MC, Nn, Ne, Nnxe = get_fem_data(dimension=3)
+MN, MC, Nn, Ne, Nnxe, nodes_info, etags = get_fem_data(dimension=3)
 
-lower_face_nodes_labels, lower_face_coordinates = gmsh.model.mesh.getNodesForPhysicalGroup(2, bottom_face)
+lower_face_nodes_labels, lower_face_coordinates = gmsh.model.mesh.getNodesForPhysicalGroup(2, bottom_face_PG)
 # upper_face_nodes_labels, upper_face_coordinates = gmsh.model.mesh.getNodesForPhysicalGroup(2, top_face)
 
 matrix_entities = gmsh.model.getEntitiesForPhysicalGroup(3, matrix_PG)
@@ -94,12 +104,85 @@ fibers_elements = np.concatenate([fiber_element[1][0] for fiber_element in fiber
 matrix_elements = matrix_elements_list[0][1][0]
 # getElements returns `elementTypes', `elementTags', `nodeTags'.
 
-E_fiber = np.array([230e9]*len(fibers_elements))
-E_matrix = np.array([2e9]*len(matrix_elements))
+E_fiber = np.array([230e9] * len(fibers_elements))
+E_matrix = np.array([2e9] * len(matrix_elements))
 Es = np.concatenate((E_fiber, E_matrix))
-#MDF-COMMENT glxn = 6 #MDF-COMMENT por qué 6 ? no dería 3?
 glxn = 3
-nu = [.28]*Ne #0.26 a 0.28 I. Krucinska and T. Stypka, Compos. Sci. Technol. 41, 1-12 (1991).
-get_k_global(MN, MC, Es, glxn, nu=nu, A=None) # todo arreglar
+nu = [.28] * Ne  # 0.26 a 0.28 I. Krucinska and T. Stypka, Compos. Sci. Technol. 41, 1-12 (1991).
+K, B, D = get_k_global(MN, MC, Es, glxn, nu=nu, A=None)
+# gmsh.model.setColor([(3, matrix_tag[0])], 100, 100, 240)
+# gmsh.model.setColor([(3, fiber_tag) for fiber_tag in fiber_tags], 240, 80, 80)
+
+# Construyo las condiciones de contorno
+bottom_face_labels, bottom_face_nodes_flatten = gmsh.model.mesh.getNodesForPhysicalGroup(2, bottom_face_PG)
+top_face_labels, top_face_nodes_flatten = gmsh.model.mesh.getNodesForPhysicalGroup(2, top_face_PG)
+
+top_face_nodes = top_face_nodes_flatten.reshape(len(top_face_labels), dimension)
+
+
+s = ((bottom_face_labels - 1) * glxn).astype(int)
+Us = np.zeros_like(s)
+
+r = get_complementary_array(Nn * glxn, s).astype(int)
+
+T = 100  # psi
+
+elementTypes_array = np.array([])
+elementTags_array = np.array([])
+nodeTags_array = np.array([])
+
+for entity in top_face_entities:
+    elementTypes, elementTags, nodeTags = gmsh.model.mesh.getElements(*entity)
+    elementTypes_array = np.append(elementTypes_array, elementTypes)
+    elementTags_array = np.append(elementTags_array, elementTags)
+    nodeTags_array = np.append(nodeTags_array, nodeTags)
+
+Ne_stress = len(elementTags_array)
+MC_stress = nodeTags_array.reshape(Ne_stress, glxn) - 1
+Fr = np.zeros_like(r).astype(np.float64)
+for e_ in range(Ne_stress):
+    n1 = MC_stress[e_, 0].astype(int)
+    n2 = MC_stress[e_, 1].astype(int)
+    n3 = MC_stress[e_, 2].astype(int)
+
+    M_aux = np.array([[MN[n1, 0], MN[n1, 1], 1],
+                      [MN[n2, 0], MN[n2, 1], 1],
+                      [MN[n3, 0], MN[n3, 1], 1]])
+
+    A = (1 / 2) * np.linalg.det(M_aux)
+
+    # print((n1, n2, n3))
+    Fr[np.where(r == n1 * glxn)[0][0]] += (T * A).astype(np.float64)  # todo esto va dividido 3?
+    Fr[np.where(r == n2 * glxn)[0][0]] += (T * A).astype(np.float64)
+    Fr[np.where(r == n3 * glxn)[0][0]] += (T * A).astype(np.float64)
+
+U, F = solve(K, s, r, Us, Fr)
+
+sig = {}
+d = {}
+for e in range(Ne):
+    nodo = MC[e, :].astype(int)
+    d[e] = np.array([U[nodo[0] * glxn], U[nodo[0] * glxn + 1], U[nodo[0] * glxn + 2],
+                     U[nodo[1] * glxn], U[nodo[1] * glxn + 1], U[nodo[1] * glxn + 2],
+                     U[nodo[2] * glxn], U[nodo[2] * glxn + 1], U[nodo[2] * glxn + 2],
+                     U[nodo[3] * glxn], U[nodo[3] * glxn + 1], U[nodo[3] * glxn + 2]]).reshape([-1, 1])
+    sig[e] = D[e].dot(B[e].dot(d[e]))
+
+U3D = U.reshape(Nn, glxn)
+MNdef = MN + U3D * 1e4
+
+strains = gmsh.view.add("Desplazamientos")
+# por algun motivo le faltaba sumar 1 a nodeinfo
+strain_model_data = gmsh.view.addModelData(strains, 0, name, 'NodeData', nodes_info[0] + 1, U3D,
+                                           numComponents=3)
+gmsh.option.setNumber(f'View[{strains}].VectorType', 5)
+
+F3D = F.reshape(Nn, glxn)*1e9
+
+forces = gmsh.view.add('forces')
+forces_model_data = gmsh.view.addModelData(forces, 0, name, 'NodeData', nodes_info[0] + 1, F3D, numComponents=3)
+gmsh.option.setNumber(f'View[{forces}].VectorType', 4)
+gmsh.option.setNumber(f'View[{forces}].GlyphLocation', 2)
+#
 
 gmsh.fltk.run()
