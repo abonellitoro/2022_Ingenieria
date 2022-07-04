@@ -4,6 +4,8 @@ import gmsh
 import numpy as np
 from utils_tf import get_fem_data, get_k_global, get_complementary_array, solve
 
+x_direction, y_direction, z_direction = (0, 1, 2)
+
 ff = 0.4
 r_f = 7e-6  # fiber radius [m]
 l_min = 1e-6
@@ -50,14 +52,18 @@ matrix_tag = list(new_tags - old_tags)
 gmsh.model.occ.synchronize()
 dr = l_min
 
+# Dirección Z
 rear_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, -dr, -dr, L + dr, L + dr, dr, dim=2)
 front_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, -dr, L - dr, L + dr, L + dr, L + dr, dim=2)
+# Dirección Y
 bottom_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, -dr, -dr, L + dr, dr, L + dr, dim=2)
 top_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, L - dr, -dr, L + dr, L + dr, L + dr, dim=2)
+# Dirección X
 right_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, - dr, -dr, dr, L + dr, L + dr, dim=2)
 left_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(L - dr, -dr, -dr, L + dr, L + dr, L + dr, dim=2)
 
-bottom_face_PG = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in bottom_face_entities])
+bottom_face_PG = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in
+                                                          bottom_face_entities])  # , name='bottom_face')
 gmsh.model.setPhysicalName(2, bottom_face_PG, 'bottom_face')
 
 top_face_PG = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in top_face_entities])
@@ -69,22 +75,11 @@ gmsh.model.setPhysicalName(3, fibers_PG, 'fibers')
 matrix_PG = gmsh.model.addPhysicalGroup(dim=3, tags=matrix_tag)
 gmsh.model.setPhysicalName(3, matrix_PG, 'matrix')
 
-# bottom_face = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in bottom_face_entities], name='bottom_face')
-# # top_face = gmsh.model.addPhysicalGroup(dim=2, tags=top_face_entities)
-# fibers_PG = gmsh.model.addPhysicalGroup(dim=3, tags=[c_bl, c_ul, c_br, c_ur, c_center], name='fibers')
-# matrix_PG = gmsh.model.addPhysicalGroup(dim=3, tags=matrix_tag, name='matrix')
-
-print('cara trasera: ', rear_face_entities)
-print('cara frontal: ', front_face_entities)
-print('cara inferior', bottom_face_entities)
-print('cara superior: ', top_face_entities)
-print('cara izquierda: ', right_face_entities)
-print('cara derecha: ', left_face_entities)
-gmsh.option.setNumber("Mesh.MeshSizeMin", 1.2)
+# gmsh.option.setNumber("Mesh.MeshSizeMin", 1.2)
 # gmsh.option.setNumber("Mesh.MeshSizeMax", 4.4)
 gmsh.model.mesh.generate(dim=3)
 gmsh.model.mesh.refine()
-gmsh.model.mesh.refine()
+# gmsh.model.mesh.refine()
 # gmsh.model.mesh.refine()
 
 gmsh.model.occ.synchronize()
@@ -119,13 +114,12 @@ top_face_labels, top_face_nodes_flatten = gmsh.model.mesh.getNodesForPhysicalGro
 
 top_face_nodes = top_face_nodes_flatten.reshape(len(top_face_labels), dimension)
 
-
-s = ((bottom_face_labels - 1) * glxn).astype(int)
+s = ((bottom_face_labels - 1) * glxn + y_direction).astype(int)
 Us = np.zeros_like(s)
 
 r = get_complementary_array(Nn * glxn, s).astype(int)
 
-T = 100  # psi
+T = -1000  # psi
 
 elementTypes_array = np.array([])
 elementTags_array = np.array([])
@@ -145,16 +139,16 @@ for e_ in range(Ne_stress):
     n2 = MC_stress[e_, 1].astype(int)
     n3 = MC_stress[e_, 2].astype(int)
 
-    M_aux = np.array([[MN[n1, 0], MN[n1, 1], 1],
-                      [MN[n2, 0], MN[n2, 1], 1],
-                      [MN[n3, 0], MN[n3, 1], 1]])
+    M_aux = np.array([[1, MN[n1, 0], MN[n1, 1]],
+                      [1, MN[n2, 0], MN[n2, 1]],
+                      [1, MN[n3, 0], MN[n3, 1]]])
 
     A = (1 / 2) * np.linalg.det(M_aux)
 
-    # print((n1, n2, n3))
-    Fr[np.where(r == n1 * glxn)[0][0]] += (T * A).astype(np.float64)  # todo esto va dividido 3?
-    Fr[np.where(r == n2 * glxn)[0][0]] += (T * A).astype(np.float64)
-    Fr[np.where(r == n3 * glxn)[0][0]] += (T * A).astype(np.float64)
+    # Aplico la fuerza en la dirección y
+    Fr[np.where(r == n1 * glxn)[0][0] + y_direction] += (T * A).astype(np.float64)  # todo esto va dividido 3?
+    Fr[np.where(r == n2 * glxn)[0][0] + y_direction] += (T * A).astype(np.float64)
+    Fr[np.where(r == n3 * glxn)[0][0] + y_direction] += (T * A).astype(np.float64)
 
 U, F = solve(K, s, r, Us, Fr)
 
@@ -177,7 +171,7 @@ strain_model_data = gmsh.view.addModelData(strains, 0, name, 'NodeData', nodes_i
                                            numComponents=3)
 gmsh.option.setNumber(f'View[{strains}].VectorType', 5)
 
-F3D = F.reshape(Nn, glxn)*1e9
+F3D = F.reshape(Nn, glxn)
 
 forces = gmsh.view.add('forces')
 forces_model_data = gmsh.view.addModelData(forces, 0, name, 'NodeData', nodes_info[0] + 1, F3D, numComponents=3)
