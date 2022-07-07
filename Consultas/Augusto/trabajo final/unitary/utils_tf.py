@@ -25,8 +25,10 @@ def get_fem_data(dimension):
 
 def get_constitutive_matrix(E, nu):
 	D = np.zeros([6, 6])
-	D[1:4, 1:4] = (1 - nu) * np.eye(3)
+	D[0:3, 0:3] = (1 - nu) * np.eye(3)
 	D[3:, 3:] = np.eye(3) * (1 - 2 * nu) / 2
+	D[0, 1:3] = nu
+	D[1, 2] = nu
 	D = E / ((1 + nu) * (1 - 2 * nu)) * D
 	return D
 
@@ -38,25 +40,25 @@ def get_k_elemental(element, MN, E, nu, glxn):
 				  [1, MN[nodos_del_elemento[2], 0], MN[nodos_del_elemento[2], 1], MN[nodos_del_elemento[2], 2]],
 				  [1, MN[nodos_del_elemento[3], 0], MN[nodos_del_elemento[3], 1], MN[nodos_del_elemento[3], 2]]])
 
-	alpha_1 = np.linalg.det(np.delete(np.delete(M, 0, axis=0), 0, axis=1))
-	beta_1 = np.linalg.det(np.delete(np.delete(M, 0, axis=0), 1, axis=1))
-	gamma_1 = np.linalg.det(np.delete(np.delete(M, 0, axis=0), 2, axis=1))
-	delta_1 = np.linalg.det(np.delete(np.delete(M, 0, axis=0), 3, axis=1))
+	alpha_1 = np.abs(np.linalg.det(np.delete(np.delete(M, 0, axis=0), 0, axis=1)))
+	beta_1 = -np.abs(np.linalg.det(np.delete(np.delete(M, 0, axis=0), 1, axis=1)))
+	gamma_1 = np.abs(np.linalg.det(np.delete(np.delete(M, 0, axis=0), 2, axis=1)))
+	delta_1 = -np.abs(np.linalg.det(np.delete(np.delete(M, 0, axis=0), 3, axis=1)))
 
-	alpha_2 = np.linalg.det(np.delete(np.delete(M, 1, axis=0), 0, axis=1))
-	beta_2 = np.linalg.det(np.delete(np.delete(M, 1, axis=0), 1, axis=1))
-	gamma_2 = np.linalg.det(np.delete(np.delete(M, 1, axis=0), 2, axis=1))
-	delta_2 = np.linalg.det(np.delete(np.delete(M, 1, axis=0), 3, axis=1))
+	alpha_2 = -np.abs(np.linalg.det(np.delete(np.delete(M, 1, axis=0), 0, axis=1)))
+	beta_2 = np.abs(np.linalg.det(np.delete(np.delete(M, 1, axis=0), 1, axis=1)))
+	gamma_2 = -np.abs(np.linalg.det(np.delete(np.delete(M, 1, axis=0), 2, axis=1)))
+	delta_2 = np.abs(np.linalg.det(np.delete(np.delete(M, 1, axis=0), 3, axis=1)))
 
-	alpha_3 = np.linalg.det(np.delete(np.delete(M, 2, axis=0), 0, axis=1))
-	beta_3 = np.linalg.det(np.delete(np.delete(M, 2, axis=0), 1, axis=1))
-	gamma_3 = np.linalg.det(np.delete(np.delete(M, 2, axis=0), 2, axis=1))
-	delta_3 = np.linalg.det(np.delete(np.delete(M, 2, axis=0), 3, axis=1))
+	alpha_3 = np.abs(np.linalg.det(np.delete(np.delete(M, 2, axis=0), 0, axis=1)))
+	beta_3 = -np.abs(np.linalg.det(np.delete(np.delete(M, 2, axis=0), 1, axis=1)))
+	gamma_3 = np.abs(np.linalg.det(np.delete(np.delete(M, 2, axis=0), 2, axis=1)))
+	delta_3 = -np.abs(np.linalg.det(np.delete(np.delete(M, 2, axis=0), 3, axis=1)))
 
-	alpha_4 = np.linalg.det(np.delete(np.delete(M, 3, axis=0), 0, axis=1))
-	beta_4 = np.linalg.det(np.delete(np.delete(M, 3, axis=0), 1, axis=1))
-	gamma_4 = np.linalg.det(np.delete(np.delete(M, 3, axis=0), 2, axis=1))
-	delta_4 = np.linalg.det(np.delete(np.delete(M, 3, axis=0), 3, axis=1))
+	alpha_4 = -np.abs(np.linalg.det(np.delete(np.delete(M, 3, axis=0), 0, axis=1)))
+	beta_4 = np.abs(np.linalg.det(np.delete(np.delete(M, 3, axis=0), 1, axis=1)))
+	gamma_4 = -np.abs(np.linalg.det(np.delete(np.delete(M, 3, axis=0), 2, axis=1)))
+	delta_4 = np.abs(np.linalg.det(np.delete(np.delete(M, 3, axis=0), 3, axis=1)))
 
 	B1 = np.array([[beta_1, 0, 0],
 				   [0, gamma_1, 0],
@@ -86,10 +88,10 @@ def get_k_elemental(element, MN, E, nu, glxn):
 				   [0, delta_2, gamma_4],
 				   [delta_4, 0, beta_4]])
 
-	Ve = np.linalg.det(M) / 6
-	B = np.hstack([B1, B2, B3, B4])
+	Ve = abs(np.linalg.det(M))
+	B = (1/6*Ve) * np.hstack([B1, B2, B3, B4])
 	D = get_constitutive_matrix(E, nu)
-	Ke = np.abs(Ve) * np.transpose(B).dot(D.dot(B))
+	Ke = np.transpose(B).dot(D.dot(B))*Ve
 
 	return Ke, B, D
 
