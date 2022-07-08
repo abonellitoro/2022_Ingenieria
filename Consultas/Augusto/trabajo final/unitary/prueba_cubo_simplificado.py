@@ -45,8 +45,8 @@ gmsh.option.setNumber("Mesh.MeshSizeMin", 1.2)
 gmsh.model.occ.synchronize()
 
 gmsh.model.mesh.generate(dim=3)
-gmsh.model.mesh.refine()
-gmsh.model.mesh.refine()
+#gmsh.model.mesh.refine()
+#gmsh.model.mesh.refine()
 gmsh.model.occ.synchronize()
 
 MN, MC, Nn, Ne, Nnxe, nodes_info, etags = get_fem_data(dimension=3)
@@ -67,7 +67,7 @@ Us = np.zeros_like(s)
 
 r = get_complementary_array(Nn * glxn, s).astype(int)
 
-T = -1e-18  # psi
+T = -1  # psi
 
 elementTypes_array = np.array([])
 elementTags_array = np.array([])
@@ -93,10 +93,16 @@ for e_ in range(Ne_stress):
 
     A = np.abs((1 / 2) * np.linalg.det(M_aux))
 
+
+    print(n1+1, n2+1, n3+1)
     # Aplico la fuerza en la dirección y
-    Fr[np.where(r == n1 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
-    Fr[np.where(r == n2 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
-    Fr[np.where(r == n3 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
+    Fr[n1 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
+    Fr[n2 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
+    Fr[n3 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
+
+    #Fr[np.where(r == n1 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
+    #Fr[np.where(r == n2 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
+    #Fr[np.where(r == n3 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
 
 U, F = solve(K, s, r, Us, Fr)
 
@@ -120,20 +126,20 @@ MNdef = MN + U3D
 
 F_iniciales = np.zeros(len(K))
 F_iniciales[r] = Fr
-F_iniciales = F_iniciales.reshape(Nn, glxn)
+F_iniciales = F_iniciales.reshape(Nn, glxn, order='C')
 forces_zero = gmsh.view.add('Fuerzas iniciales')
-forces_model_data = gmsh.view.addModelData(forces_zero, 0, name, 'NodeData', nodes_info[0] + 1, F_iniciales, numComponents=3)
+forces_model_data = gmsh.view.addModelData(forces_zero, 0, name, 'NodeData', nodes_info[0], F_iniciales, numComponents=3)
 
 strains = gmsh.view.add("Desplazamientos")
 # por algun motivo le faltaba sumar 1 a nodeinfo
-strain_model_data = gmsh.view.addModelData(strains, 0, name, 'NodeData', nodes_info[0] + 1, U3D,
+strain_model_data = gmsh.view.addModelData(strains, 0, name, 'NodeData', nodes_info[0], U3D,
                                            numComponents=3)
 gmsh.option.setNumber(f'View[{strains}].VectorType', 5)
 
 F3D = F.reshape(Nn, glxn)
 
 forces = gmsh.view.add('Fuerzas')
-forces_model_data = gmsh.view.addModelData(forces, 0, name, 'NodeData', nodes_info[0] + 1, F3D, numComponents=3)
+forces_model_data = gmsh.view.addModelData(forces, 0, name, 'NodeData', nodes_info[0], F3D, numComponents=3)
 # gmsh.option.setNumber(f'View[{forces}].VectorType', 4)
 # gmsh.option.setNumber(f'View[{forces}].GlyphLocation', 2)
 
