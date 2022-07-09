@@ -1,7 +1,7 @@
 import gmsh
 import numpy as np
+import pdb
 from utils_tf import get_fem_data, get_k_global, get_complementary_array, solve
-
 x_direction, y_direction, z_direction = (0, 1, 2)
 
 ff = 0.4
@@ -10,7 +10,8 @@ l_min = 1e-6
 
 H = 2 * r_f + l_min
 L = 2 * np.sqrt(H ** 2 / 2)
-lc = L / 10
+#MDF-COMMENTlc = L / 10
+lc = 2*L
 dimension = 3
 
 name = 'prueba'
@@ -34,6 +35,10 @@ left_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(L - dr, -dr, -dr, L
 
 bottom_face_PG = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in
                                                           bottom_face_entities])  # , name='bottom_face')
+
+#MDF-COMMENT el cubo tambien tiene que estar en un pg
+cube_PG = gmsh.model.addPhysicalGroup(dim=3, tags=[cube])
+gmsh.model.setPhysicalName(3, cube_PG, 'cube_volume')
 
 gmsh.model.setPhysicalName(2, bottom_face_PG, 'bottom_face')
 
@@ -61,7 +66,6 @@ bottom_face_labels, bottom_face_nodes_flatten = gmsh.model.mesh.getNodesForPhysi
 top_face_labels, top_face_nodes_flatten = gmsh.model.mesh.getNodesForPhysicalGroup(2, top_face_PG)
 
 top_face_nodes = top_face_nodes_flatten.reshape(len(top_face_labels), dimension)
-
 s = ((bottom_face_labels - 1) * glxn + y_direction).astype(int)
 Us = np.zeros_like(s)
 
@@ -96,13 +100,17 @@ for e_ in range(Ne_stress):
 
     print(n1+1, n2+1, n3+1)
     # Aplico la fuerza en la dirección y
-    Fr[n1 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
-    Fr[n2 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
-    Fr[n3 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
-
+    #MDF-COMMENT estamos indexando con indices globales en este vector que es mas chico (por eso lo tenias con np.where)
+#MDF-COMMENT    Fr[n1 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
+#MDF-COMMENT    Fr[n2 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
+#MDF-COMMENT    Fr[n3 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
+#MDF-COMMENT
     #Fr[np.where(r == n1 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
     #Fr[np.where(r == n2 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
     #Fr[np.where(r == n3 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
+    Fr[ r == n1*glxn+y_direction ] += T*A /3
+    Fr[ r == n2*glxn+y_direction ] += T*A /3
+    Fr[ r == n3*glxn+y_direction ] += T*A /3
 
 U, F = solve(K, s, r, Us, Fr)
 
@@ -124,11 +132,13 @@ for e in range(Ne):
 U3D = U.reshape(Nn, glxn)
 MNdef = MN + U3D
 
-F_iniciales = np.zeros(len(K))
+F_iniciales = np.zeros(Nn*glxn) #np.zeros(len(K))
 F_iniciales[r] = Fr
 F_iniciales = F_iniciales.reshape(Nn, glxn, order='C')
 forces_zero = gmsh.view.add('Fuerzas iniciales')
 forces_model_data = gmsh.view.addModelData(forces_zero, 0, name, 'NodeData', nodes_info[0], F_iniciales, numComponents=3)
+gmsh.option.setNumber(f'View[{forces_zero}].VectorType', 4)
+gmsh.option.setNumber(f'View[{forces_zero}].GlyphLocation', 2)
 
 strains = gmsh.view.add("Desplazamientos")
 # por algun motivo le faltaba sumar 1 a nodeinfo
@@ -140,7 +150,10 @@ F3D = F.reshape(Nn, glxn)
 
 forces = gmsh.view.add('Fuerzas')
 forces_model_data = gmsh.view.addModelData(forces, 0, name, 'NodeData', nodes_info[0], F3D, numComponents=3)
-# gmsh.option.setNumber(f'View[{forces}].VectorType', 4)
-# gmsh.option.setNumber(f'View[{forces}].GlyphLocation', 2)
+gmsh.option.setNumber(f'View[{forces}].VectorType', 4)
+gmsh.option.setNumber(f'View[{forces}].GlyphLocation', 2)
 
+gmsh.option.setNumber('Mesh.NodeLabels', 1)
+gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
+gmsh.write('testcube.msh')
 gmsh.fltk.run()
