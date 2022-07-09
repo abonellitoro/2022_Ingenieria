@@ -2,6 +2,7 @@ import gmsh
 import numpy as np
 import pdb
 from utils_tf import get_fem_data, get_k_global, get_complementary_array, solve
+
 x_direction, y_direction, z_direction = (0, 1, 2)
 
 ff = 0.4
@@ -9,11 +10,12 @@ r_f = 7e-6  # fiber radius [m]
 l_min = 1e-6
 
 H = 2 * r_f + l_min
-L = 2 * np.sqrt(H ** 2 / 2)
-#MDF-COMMENTlc = L / 10
-lc = 2*L
+L = 1# 2 * np.sqrt(H ** 2 / 2)
+# MDF-COMMENTlc = L / 10
+lc = 2 * L
 dimension = 3
 
+T = -1 # psi
 name = 'prueba'
 gmsh.initialize()
 gmsh.model.add(name)
@@ -36,7 +38,7 @@ left_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(L - dr, -dr, -dr, L
 bottom_face_PG = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in
                                                           bottom_face_entities])  # , name='bottom_face')
 
-#MDF-COMMENT el cubo tambien tiene que estar en un pg
+# MDF-COMMENT el cubo tambien tiene que estar en un pg
 cube_PG = gmsh.model.addPhysicalGroup(dim=3, tags=[cube])
 gmsh.model.setPhysicalName(3, cube_PG, 'cube_volume')
 
@@ -50,8 +52,8 @@ gmsh.option.setNumber("Mesh.MeshSizeMin", 1.2)
 gmsh.model.occ.synchronize()
 
 gmsh.model.mesh.generate(dim=3)
-#gmsh.model.mesh.refine()
-#gmsh.model.mesh.refine()
+# gmsh.model.mesh.refine()
+# gmsh.model.mesh.refine()
 gmsh.model.occ.synchronize()
 
 MN, MC, Nn, Ne, Nnxe, nodes_info, etags = get_fem_data(dimension=3)
@@ -65,13 +67,13 @@ K, B, D = get_k_global(MN, MC, Es, glxn, nu=nu, A=None)
 bottom_face_labels, bottom_face_nodes_flatten = gmsh.model.mesh.getNodesForPhysicalGroup(2, bottom_face_PG)
 top_face_labels, top_face_nodes_flatten = gmsh.model.mesh.getNodesForPhysicalGroup(2, top_face_PG)
 
-top_face_nodes = top_face_nodes_flatten.reshape(len(top_face_labels), dimension)
+# top_face_nodes = top_face_nodes_flatten.reshape(len(top_face_labels), dimension)
 s = ((bottom_face_labels - 1) * glxn + y_direction).astype(int)
+print('nodos bottom: ', bottom_face_labels-1)
+print('s', s)
 Us = np.zeros_like(s)
 
 r = get_complementary_array(Nn * glxn, s).astype(int)
-
-T = -1  # psi
 
 elementTypes_array = np.array([])
 elementTags_array = np.array([])
@@ -97,20 +99,11 @@ for e_ in range(Ne_stress):
 
     A = np.abs((1 / 2) * np.linalg.det(M_aux))
 
+    print(T * A / 3)
 
-    print(n1+1, n2+1, n3+1)
-    # Aplico la fuerza en la dirección y
-    #MDF-COMMENT estamos indexando con indices globales en este vector que es mas chico (por eso lo tenias con np.where)
-#MDF-COMMENT    Fr[n1 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
-#MDF-COMMENT    Fr[n2 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
-#MDF-COMMENT    Fr[n3 * glxn+ y_direction]  += (T * A).astype(np.float64) / 3
-#MDF-COMMENT
-    #Fr[np.where(r == n1 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
-    #Fr[np.where(r == n2 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
-    #Fr[np.where(r == n3 * glxn+ y_direction)[0][0] ] += (T * A).astype(np.float64) / 3
-    Fr[ r == n1*glxn+y_direction ] += T*A /3
-    Fr[ r == n2*glxn+y_direction ] += T*A /3
-    Fr[ r == n3*glxn+y_direction ] += T*A /3
+    Fr[r == n1 * glxn + y_direction] += T * A / 3
+    Fr[r == n2 * glxn + y_direction] += T * A / 3
+    Fr[r == n3 * glxn + y_direction] += T * A / 3
 
 U, F = solve(K, s, r, Us, Fr)
 
@@ -118,32 +111,34 @@ sig = {}
 d = {}
 for e in range(Ne):
     nodo = MC[e, :].astype(int)
-    # d[e] = np.array([U[nodo[0] * glxn], U[nodo[0] * glxn + 1], U[nodo[0] * glxn + 2],
-    #                  U[nodo[1] * glxn], U[nodo[1] * glxn + 1], U[nodo[1] * glxn + 2],
-    #                  U[nodo[2] * glxn], U[nodo[2] * glxn + 1], U[nodo[2] * glxn + 2],
-    #                  U[nodo[3] * glxn], U[nodo[3] * glxn + 1], U[nodo[3] * glxn + 2]]).reshape([-1, 1])
+    d[e] = np.array([U[nodo[0] * glxn], U[nodo[0] * glxn + 1], U[nodo[0] * glxn + 2],
+                     U[nodo[1] * glxn], U[nodo[1] * glxn + 1], U[nodo[1] * glxn + 2],
+                     U[nodo[2] * glxn], U[nodo[2] * glxn + 1], U[nodo[2] * glxn + 2],
+                     U[nodo[3] * glxn], U[nodo[3] * glxn + 1], U[nodo[3] * glxn + 2]]).reshape([-1, 1])
 
-    d[e] = np.array([U[nodo[0] * glxn], U[nodo[1] * glxn], U[nodo[2] * glxn], U[nodo[3] * glxn],
-                     U[nodo[0] * glxn + 1], U[nodo[1] * glxn + 1], U[nodo[2] * glxn+1], U[nodo[3] * glxn + 1],
-                     U[nodo[0] * glxn + 2], U[nodo[1] * glxn+2], U[nodo[2] * glxn + 2], U[nodo[3] * glxn + 2]]).reshape([-1, 1])
+    # d[e] = np.array([U[nodo[0] * glxn], U[nodo[1] * glxn], U[nodo[2] * glxn], U[nodo[3] * glxn],
+    #                  U[nodo[0] * glxn + 1], U[nodo[1] * glxn + 1], U[nodo[2] * glxn + 1], U[nodo[3] * glxn + 1],
+    #                  U[nodo[0] * glxn + 2], U[nodo[1] * glxn + 2], U[nodo[2] * glxn + 2],
+    #                  U[nodo[3] * glxn + 2]]).reshape([-1, 1])
 
     sig[e] = D[e].dot(B[e].dot(d[e]))
 
 U3D = U.reshape(Nn, glxn)
 MNdef = MN + U3D
 
-F_iniciales = np.zeros(Nn*glxn) #np.zeros(len(K))
+
+F_iniciales = np.zeros(Nn * glxn)  # np.zeros(len(K))
 F_iniciales[r] = Fr
-F_iniciales = F_iniciales.reshape(Nn, glxn, order='C')
+F_iniciales = F_iniciales.reshape(Nn, glxn)
 forces_zero = gmsh.view.add('Fuerzas iniciales')
-forces_model_data = gmsh.view.addModelData(forces_zero, 0, name, 'NodeData', nodes_info[0], F_iniciales, numComponents=3)
+forces_model_data = gmsh.view.addModelData(forces_zero, 0, name, 'NodeData', nodes_info[0], F_iniciales,
+                                           numComponents=3)
 gmsh.option.setNumber(f'View[{forces_zero}].VectorType', 4)
 gmsh.option.setNumber(f'View[{forces_zero}].GlyphLocation', 2)
 
 strains = gmsh.view.add("Desplazamientos")
 # por algun motivo le faltaba sumar 1 a nodeinfo
-strain_model_data = gmsh.view.addModelData(strains, 0, name, 'NodeData', nodes_info[0], U3D,
-                                           numComponents=3)
+strain_model_data = gmsh.view.addModelData(strains, 0, name, 'NodeData', nodes_info[0], U3D, numComponents=3)
 gmsh.option.setNumber(f'View[{strains}].VectorType', 5)
 
 F3D = F.reshape(Nn, glxn)
