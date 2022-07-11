@@ -52,7 +52,7 @@ gmsh.option.setNumber("Mesh.MeshSizeMin", 1.2)
 gmsh.model.occ.synchronize()
 
 gmsh.model.mesh.generate(dim=3)
-# gmsh.model.mesh.refine()
+gmsh.model.mesh.refine()
 # gmsh.model.mesh.refine()
 gmsh.model.occ.synchronize()
 
@@ -116,11 +116,6 @@ for e in range(Ne):
                      U[nodo[2] * glxn], U[nodo[2] * glxn + 1], U[nodo[2] * glxn + 2],
                      U[nodo[3] * glxn], U[nodo[3] * glxn + 1], U[nodo[3] * glxn + 2]]).reshape([-1, 1])
 
-    # d[e] = np.array([U[nodo[0] * glxn], U[nodo[1] * glxn], U[nodo[2] * glxn], U[nodo[3] * glxn],
-    #                  U[nodo[0] * glxn + 1], U[nodo[1] * glxn + 1], U[nodo[2] * glxn + 1], U[nodo[3] * glxn + 1],
-    #                  U[nodo[0] * glxn + 2], U[nodo[1] * glxn + 2], U[nodo[2] * glxn + 2],
-    #                  U[nodo[3] * glxn + 2]]).reshape([-1, 1])
-
     sig[e] = D[e].dot(B[e].dot(d[e]))
 
 U3D = U.reshape(Nn, glxn)
@@ -139,7 +134,9 @@ gmsh.option.setNumber(f'View[{forces_zero}].GlyphLocation', 2)
 strains = gmsh.view.add("Desplazamientos")
 # por algun motivo le faltaba sumar 1 a nodeinfo
 strain_model_data = gmsh.view.addModelData(strains, 0, name, 'NodeData', nodes_info[0], U3D, numComponents=3)
-gmsh.option.setNumber(f'View[{strains}].VectorType', 5)
+gmsh.option.setNumber(f'View[{strains}].VectorType', 4)
+gmsh.option.setNumber(f'View[{strains}].GlyphLocation', 2)
+
 
 F3D = F.reshape(Nn, glxn)
 

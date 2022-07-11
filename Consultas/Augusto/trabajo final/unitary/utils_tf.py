@@ -37,25 +37,25 @@ def get_k_elemental(element, MN, E, nu, glxn):
                   [1, MN[nodos_del_elemento[2], 0], MN[nodos_del_elemento[2], 1], MN[nodos_del_elemento[2], 2]],
                   [1, MN[nodos_del_elemento[3], 0], MN[nodos_del_elemento[3], 1], MN[nodos_del_elemento[3], 2]]])
 
-    alpha_1 = np.abs(np.linalg.det(np.delete(np.delete(M, 0, axis=0), 0, axis=1)))
-    beta_1 = -np.abs(np.linalg.det(np.delete(np.delete(M, 0, axis=0), 1, axis=1)))
-    gamma_1 = np.abs(np.linalg.det(np.delete(np.delete(M, 0, axis=0), 2, axis=1)))
-    delta_1 = -np.abs(np.linalg.det(np.delete(np.delete(M, 0, axis=0), 3, axis=1)))
+    alpha_1 = np.linalg.det(np.delete(np.delete(M, 0, axis=0), 0, axis=1))
+    beta_1 = -np.linalg.det(np.delete(np.delete(M, 0, axis=0), 1, axis=1))
+    gamma_1 = np.linalg.det(np.delete(np.delete(M, 0, axis=0), 2, axis=1))
+    delta_1 = -np.linalg.det(np.delete(np.delete(M, 0, axis=0), 3, axis=1))
 
-    alpha_2 = -np.abs(np.linalg.det(np.delete(np.delete(M, 1, axis=0), 0, axis=1)))
-    beta_2 = np.abs(np.linalg.det(np.delete(np.delete(M, 1, axis=0), 1, axis=1)))
-    gamma_2 = -np.abs(np.linalg.det(np.delete(np.delete(M, 1, axis=0), 2, axis=1)))
-    delta_2 = np.abs(np.linalg.det(np.delete(np.delete(M, 1, axis=0), 3, axis=1)))
+    alpha_2 = -np.linalg.det(np.delete(np.delete(M, 1, axis=0), 0, axis=1))
+    beta_2 = np.linalg.det(np.delete(np.delete(M, 1, axis=0), 1, axis=1))
+    gamma_2 = -np.linalg.det(np.delete(np.delete(M, 1, axis=0), 2, axis=1))
+    delta_2 = np.linalg.det(np.delete(np.delete(M, 1, axis=0), 3, axis=1))
 
-    alpha_3 = np.abs(np.linalg.det(np.delete(np.delete(M, 2, axis=0), 0, axis=1)))
-    beta_3 = -np.abs(np.linalg.det(np.delete(np.delete(M, 2, axis=0), 1, axis=1)))
-    gamma_3 = np.abs(np.linalg.det(np.delete(np.delete(M, 2, axis=0), 2, axis=1)))
-    delta_3 = -np.abs(np.linalg.det(np.delete(np.delete(M, 2, axis=0), 3, axis=1)))
+    alpha_3 = np.linalg.det(np.delete(np.delete(M, 2, axis=0), 0, axis=1))
+    beta_3 = -np.linalg.det(np.delete(np.delete(M, 2, axis=0), 1, axis=1))
+    gamma_3 = np.linalg.det(np.delete(np.delete(M, 2, axis=0), 2, axis=1))
+    delta_3 = -np.linalg.det(np.delete(np.delete(M, 2, axis=0), 3, axis=1))
 
-    alpha_4 = -np.abs(np.linalg.det(np.delete(np.delete(M, 3, axis=0), 0, axis=1)))
-    beta_4 = np.abs(np.linalg.det(np.delete(np.delete(M, 3, axis=0), 1, axis=1)))
-    gamma_4 = -np.abs(np.linalg.det(np.delete(np.delete(M, 3, axis=0), 2, axis=1)))
-    delta_4 = np.abs(np.linalg.det(np.delete(np.delete(M, 3, axis=0), 3, axis=1)))
+    alpha_4 = -np.linalg.det(np.delete(np.delete(M, 3, axis=0), 0, axis=1))
+    beta_4 = np.linalg.det(np.delete(np.delete(M, 3, axis=0), 1, axis=1))
+    gamma_4 = -np.linalg.det(np.delete(np.delete(M, 3, axis=0), 2, axis=1))
+    delta_4 = np.linalg.det(np.delete(np.delete(M, 3, axis=0), 3, axis=1))
 
     B1 = np.array([[beta_1, 0, 0],
                    [0, gamma_1, 0],
