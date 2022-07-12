@@ -52,7 +52,7 @@ gmsh.option.setNumber("Mesh.MeshSizeMin", 1.2)
 gmsh.model.occ.synchronize()
 
 gmsh.model.mesh.generate(dim=3)
-gmsh.model.mesh.refine()
+# gmsh.model.mesh.refine()
 # gmsh.model.mesh.refine()
 gmsh.model.occ.synchronize()
 

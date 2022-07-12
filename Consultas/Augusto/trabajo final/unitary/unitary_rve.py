@@ -14,6 +14,7 @@ H = 2 * r_f + l_min
 L = 2 * np.sqrt(H ** 2 / 2)
 lc = L / 10
 dimension = 3
+T=-1
 
 name = 'prueba'
 gmsh.initialize()
@@ -24,8 +25,6 @@ gmsh.model.add(name)
 # gmsh.option.setNumber("Mesh.Algorithm", 5)  # delquad, para que realice el mesh cuadrangular
 # gmsh.option.setNumber("Mesh.RecombineAll", 1)
 
-points = dict()
-lines = dict()
 
 cube = gmsh.model.occ.addBox(0, 0, 0, L, L, L)
 c_bl = gmsh.model.occ.addCylinder(0, 0, 0, 0, 0, L, r_f)
@@ -62,6 +61,7 @@ top_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, L - dr, -dr, L 
 right_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(-dr, - dr, -dr, dr, L + dr, L + dr, dim=2)
 left_face_entities = gmsh.model.occ.getEntitiesInBoundingBox(L - dr, -dr, -dr, L + dr, L + dr, L + dr, dim=2)
 
+# Defino los Physical Groups
 bottom_face_PG = gmsh.model.addPhysicalGroup(dim=2, tags=[entity[1] for entity in
                                                           bottom_face_entities])  # , name='bottom_face')
 gmsh.model.setPhysicalName(2, bottom_face_PG, 'bottom_face')
@@ -75,19 +75,19 @@ gmsh.model.setPhysicalName(3, fibers_PG, 'fibers')
 matrix_PG = gmsh.model.addPhysicalGroup(dim=3, tags=matrix_tag)
 gmsh.model.setPhysicalName(3, matrix_PG, 'matrix')
 
-# gmsh.option.setNumber("Mesh.MeshSizeMin", 1.2)
+cube_PG = gmsh.model.addPhysicalGroup(dim=3, tags=[cube])
+gmsh.model.setPhysicalName(3, cube_PG, 'cube_volume')
+
+gmsh.option.setNumber("Mesh.MeshSizeMin", 1.2)
 # gmsh.option.setNumber("Mesh.MeshSizeMax", 4.4)
 gmsh.model.mesh.generate(dim=3)
-gmsh.model.mesh.refine()
+# gmsh.model.mesh.refine()
 # gmsh.model.mesh.refine()
 # gmsh.model.mesh.refine()
 
 gmsh.model.occ.synchronize()
 
 MN, MC, Nn, Ne, Nnxe, nodes_info, etags = get_fem_data(dimension=3)
-
-lower_face_nodes_labels, lower_face_coordinates = gmsh.model.mesh.getNodesForPhysicalGroup(2, bottom_face_PG)
-# upper_face_nodes_labels, upper_face_coordinates = gmsh.model.mesh.getNodesForPhysicalGroup(2, top_face)
 
 matrix_entities = gmsh.model.getEntitiesForPhysicalGroup(3, matrix_PG)
 matrix_elements_list = [gmsh.model.mesh.getElements(3, matrix_entity) for matrix_entity in matrix_entities]
@@ -119,8 +119,6 @@ Us = np.zeros_like(s)
 
 r = get_complementary_array(Nn * glxn, s).astype(int)
 
-T = -1000  # psi
-
 elementTypes_array = np.array([])
 elementTags_array = np.array([])
 nodeTags_array = np.array([])
@@ -139,16 +137,16 @@ for e_ in range(Ne_stress):
     n2 = MC_stress[e_, 1].astype(int)
     n3 = MC_stress[e_, 2].astype(int)
 
-    M_aux = np.array([[1, MN[n1, 0], MN[n1, 1]],
-                      [1, MN[n2, 0], MN[n2, 1]],
-                      [1, MN[n3, 0], MN[n3, 1]]])
+    M_aux = np.array([[1, MN[n1, 0], MN[n1, 2]],
+                      [1, MN[n2, 0], MN[n2, 2]],
+                      [1, MN[n3, 0], MN[n3, 2]]])
 
-    A = (1 / 2) * np.linalg.det(M_aux)
+    A = np.abs((1 / 2) * np.linalg.det(M_aux))
 
     # Aplico la fuerza en la dirección y
-    Fr[np.where(r == n1 * glxn)[0][0] + y_direction] += (T * A).astype(np.float64)  # todo esto va dividido 3?
-    Fr[np.where(r == n2 * glxn)[0][0] + y_direction] += (T * A).astype(np.float64)
-    Fr[np.where(r == n3 * glxn)[0][0] + y_direction] += (T * A).astype(np.float64)
+    Fr[r == n1 * glxn + y_direction] += (T * A).astype(np.float64)/3
+    Fr[r == n2 * glxn + y_direction] += (T * A).astype(np.float64)/3
+    Fr[r == n3 * glxn + y_direction] += (T * A).astype(np.float64)/3
 
 U, F = solve(K, s, r, Us, Fr)
 
@@ -162,21 +160,24 @@ for e in range(Ne):
                      U[nodo[3] * glxn], U[nodo[3] * glxn + 1], U[nodo[3] * glxn + 2]]).reshape([-1, 1])
     sig[e] = D[e].dot(B[e].dot(d[e]))
 
-U3D = U.reshape(Nn, glxn)
-MNdef = MN + U3D * 1e4
+U3D = U.reshape(Nn, glxn)/U.max()
+MNdef = MN + U3D
 
 strains = gmsh.view.add("Desplazamientos")
 # por algun motivo le faltaba sumar 1 a nodeinfo
-strain_model_data = gmsh.view.addModelData(strains, 0, name, 'NodeData', nodes_info[0] + 1, U3D,
+strain_model_data = gmsh.view.addModelData(strains, 0, name, 'NodeData', nodes_info[0], U3D,
                                            numComponents=3)
 gmsh.option.setNumber(f'View[{strains}].VectorType', 5)
 
 F3D = F.reshape(Nn, glxn)
 
 forces = gmsh.view.add('forces')
-forces_model_data = gmsh.view.addModelData(forces, 0, name, 'NodeData', nodes_info[0] + 1, F3D, numComponents=3)
+forces_model_data = gmsh.view.addModelData(forces, 0, name, 'NodeData', nodes_info[0], F3D, numComponents=3)
+
+
 gmsh.option.setNumber(f'View[{forces}].VectorType', 4)
 gmsh.option.setNumber(f'View[{forces}].GlyphLocation', 2)
 #
 
 gmsh.fltk.run()
+    

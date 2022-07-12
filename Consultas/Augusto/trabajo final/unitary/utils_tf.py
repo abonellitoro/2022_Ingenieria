@@ -25,7 +25,9 @@ def get_constitutive_matrix(E, nu):
     D[0:3, 0:3] = (1 - nu) * np.eye(3)
     D[3:, 3:] = np.eye(3) * (1 - 2 * nu) / 2
     D[0, 1:3] = nu
+    D[1:3, 0] = nu
     D[1, 2] = nu
+    D[2, 1] = nu
     D = E / ((1 + nu) * (1 - 2 * nu)) * D
     return D
 
@@ -85,8 +87,8 @@ def get_k_elemental(element, MN, E, nu, glxn):
                    [0, delta_4, gamma_4],
                    [delta_4, 0, beta_4]])
 
-    Ve = abs(np.linalg.det(M))
-    B = (1 / 6 * Ve) * np.hstack([B1, B2, B3, B4])
+    Ve = abs(np.linalg.det(M)) / 6
+    B = (1 / (6 * Ve)) * np.hstack([B1, B2, B3, B4])
     D = get_constitutive_matrix(E, nu)
     Ke = np.transpose(B).dot(D.dot(B)) * Ve
 
