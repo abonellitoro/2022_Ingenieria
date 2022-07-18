@@ -4,18 +4,19 @@ import pdb
 from utils_tf import get_fem_data, get_k_global, get_complementary_array, solve
 
 x_direction, y_direction, z_direction = (0, 1, 2)
+directions = (x_direction, y_direction, z_direction)
 
 ff = 0.4
 r_f = 7e-6  # fiber radius [m]
 l_min = 1e-6
 
 H = 2 * r_f + l_min
-L = 1# 2 * np.sqrt(H ** 2 / 2)
+L = 1  # 2 * np.sqrt(H ** 2 / 2)
 # MDF-COMMENTlc = L / 10
 lc = 2 * L
 dimension = 3
 
-T = -1 # psi
+T = -100  # psi
 name = 'prueba'
 gmsh.initialize()
 gmsh.model.add(name)
@@ -52,8 +53,8 @@ gmsh.option.setNumber("Mesh.MeshSizeMin", 1.2)
 gmsh.model.occ.synchronize()
 
 gmsh.model.mesh.generate(dim=3)
-# gmsh.model.mesh.refine()
-# gmsh.model.mesh.refine()
+gmsh.model.mesh.refine()
+gmsh.model.mesh.refine()
 gmsh.model.occ.synchronize()
 
 MN, MC, Nn, Ne, Nnxe, nodes_info, etags = get_fem_data(dimension=3)
@@ -61,7 +62,7 @@ MN, MC, Nn, Ne, Nnxe, nodes_info, etags = get_fem_data(dimension=3)
 Es = [230e9] * Ne
 glxn = 3
 nu = [.28] * Ne  # 0.26 a 0.28 I. Krucinska and T. Stypka, Compos. Sci. Technol. 41, 1-12 (1991).
-K, B, D = get_k_global(MN, MC, Es, glxn, nu=nu, A=None)
+# K, B, D = get_k_global(MN, MC, Es, glxn, nu=nu, A=None)
 
 # Construyo las condiciones de contorno
 bottom_face_labels, bottom_face_nodes_flatten = gmsh.model.mesh.getNodesForPhysicalGroup(2, bottom_face_PG)
@@ -69,8 +70,8 @@ top_face_labels, top_face_nodes_flatten = gmsh.model.mesh.getNodesForPhysicalGro
 
 # top_face_nodes = top_face_nodes_flatten.reshape(len(top_face_labels), dimension)
 s = ((bottom_face_labels - 1) * glxn + y_direction).astype(int)
-print('nodos bottom: ', bottom_face_labels-1)
-print('s', s)
+s = np.vstack([(bottom_face_labels - 1) * glxn + direction for direction in directions]).astype(int)
+
 Us = np.zeros_like(s)
 
 r = get_complementary_array(Nn * glxn, s).astype(int)
@@ -99,8 +100,6 @@ for e_ in range(Ne_stress):
 
     A = np.abs((1 / 2) * np.linalg.det(M_aux))
 
-    print(T * A / 3)
-
     Fr[r == n1 * glxn + y_direction] += T * A / 3
     Fr[r == n2 * glxn + y_direction] += T * A / 3
     Fr[r == n3 * glxn + y_direction] += T * A / 3
@@ -119,33 +118,24 @@ for e in range(Ne):
     sig[e] = D[e].dot(B[e].dot(d[e]))
 
 U3D = U.reshape(Nn, glxn)
-MNdef = MN + U3D
+MNdef = (MN + U3D)*1e9
 
 
-F_iniciales = np.zeros(Nn * glxn)  # np.zeros(len(K))
-F_iniciales[r] = Fr
-F_iniciales = F_iniciales.reshape(Nn, glxn)
-forces_zero = gmsh.view.add('Fuerzas iniciales')
-forces_model_data = gmsh.view.addModelData(forces_zero, 0, name, 'NodeData', nodes_info[0], F_iniciales,
-                                           numComponents=3)
-gmsh.option.setNumber(f'View[{forces_zero}].VectorType', 4)
-gmsh.option.setNumber(f'View[{forces_zero}].GlyphLocation', 2)
-
-strains = gmsh.view.add("Desplazamientos")
+displacements = gmsh.view.add("Desplazamientos")
 # por algun motivo le faltaba sumar 1 a nodeinfo
-strain_model_data = gmsh.view.addModelData(strains, 0, name, 'NodeData', nodes_info[0], U3D, numComponents=3)
-gmsh.option.setNumber(f'View[{strains}].VectorType', 4)
-gmsh.option.setNumber(f'View[{strains}].GlyphLocation', 2)
-
+strain_model_data = gmsh.view.addModelData(displacements, 0, name, 'NodeData', nodes_info[0], U3D, numComponents=3)
+gmsh.view.option.setNumber(displacements, "Visible", 0)
+gmsh.view.option.setNumber(displacements, "GlyphLocation", 2)
+gmsh.view.option.setNumber(displacements, 'VectorType', 5)
 
 F3D = F.reshape(Nn, glxn)
-
-forces = gmsh.view.add('Fuerzas')
+forces = gmsh.view.add('forces')
 forces_model_data = gmsh.view.addModelData(forces, 0, name, 'NodeData', nodes_info[0], F3D, numComponents=3)
-gmsh.option.setNumber(f'View[{forces}].VectorType', 4)
-gmsh.option.setNumber(f'View[{forces}].GlyphLocation', 2)
+gmsh.view.option.setNumber(forces, "Visible", 0)
+gmsh.view.option.setNumber(forces, "GlyphLocation", 2)
+gmsh.view.option.setNumber(forces, 'VectorType', 4)
 
-gmsh.option.setNumber('Mesh.NodeLabels', 1)
-gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
-gmsh.write('testcube.msh')
+# # gmsh.option.setNumber('Mesh.NodeLabels', 1)
+# gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
+# gmsh.write('testcube.msh')
 gmsh.fltk.run()
